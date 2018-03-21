@@ -643,7 +643,16 @@ def get_apps(apps, health_check):
     return apps_list
 
 
-def create_config_marathon(cccl, apps):
+def get_source_addr_translation(snat_pool_name):
+    if snat_pool_name == "":
+        return {'type': 'automap'}
+    return {
+        'type': 'snat',
+        'pool': snat_pool_name
+    }
+
+
+def create_config_marathon(cccl, apps, snat_pool_name):
     """Create a BIG-IP configuration from the Marathon app list.
 
     Args:
@@ -832,7 +841,8 @@ def create_config_marathon(cccl, apps):
                     "/%s/%s:%d" % (app.partition, app.bindAddr,
                                    app.servicePort),
                     'pool': "/%s/%s" % (app.partition, frontend_name),
-                    'sourceAddressTranslation': {'type': 'automap'},
+                    'sourceAddressTranslation': get_source_addr_translation(
+                        snat_pool_name),
                     'profiles': profiles
                 }
                 services['virtualServers'].append(virtual)
@@ -858,7 +868,7 @@ class MarathonEventProcessor(object):
     reconfigures the BIG-IP
     """
 
-    def __init__(self, marathon, verify_interval, cccls):
+    def __init__(self, marathon, verify_interval, cccls, snat_pool_name):
         """Class init.
 
         Starts a thread that waits for Marathon events,
@@ -869,6 +879,7 @@ class MarathonEventProcessor(object):
         self.__apps = dict()
         self.__cccls = cccls
         self.__verify_interval = verify_interval
+        self.__snat_pool_name = snat_pool_name
 
         self.__condition = threading.Condition()
         self.__thread = threading.Thread(target=self.do_reset)
@@ -906,7 +917,8 @@ class MarathonEventProcessor(object):
 
                     incomplete = 0
                     for cccl in self.__cccls:
-                        cfg = create_config_marathon(cccl, self.__apps)
+                        cfg = create_config_marathon(
+                            cccl, self.__apps, self.__snat_pool_name)
                         try:
                             incomplete += cccl.apply_ltm_config(cfg)
                         except F5CcclError as e:
@@ -1032,6 +1044,10 @@ def get_arg_parser():
                         env_var='F5_CC_VERIFY_INTERVAL',
                         default=30, help="Interval at which to verify "
                         "the BIG-IP configuration.")
+    parser.add_argument('--vs-snat-pool-name', type=str,
+                        env_var='F5_CC_VS_SNAT_POOL_NAME',
+                        default="", help="Name of the SNAT pool that all of "
+                        "the virtual servers should reference.")
     parser.add_argument("--version",
                         help="Print out version information and exit",
                         action="store_true")
@@ -1178,7 +1194,8 @@ if __name__ == '__main__':
                         get_marathon_auth_params(args),
                         args.marathon_ca_cert)
 
-    processor = MarathonEventProcessor(marathon, args.verify_interval, cccls)
+    processor = MarathonEventProcessor(
+        marathon, args.verify_interval, cccls, args.vs_snat_pool_name)
     while True:
         try:
             events = marathon.get_event_stream(args.sse_timeout)

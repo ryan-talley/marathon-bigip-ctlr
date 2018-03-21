@@ -114,8 +114,9 @@ class ArgTest(unittest.TestCase):
                               [--health-check]
                               [--marathon-ca-cert MARATHON_CA_CERT]
                               [--sse-timeout SSE_TIMEOUT]
-                              [--verify-interval VERIFY_INTERVAL] [--version]
-                              [--log-format LOG_FORMAT]
+                              [--verify-interval VERIFY_INTERVAL]
+                              [--vs-snat-pool-name VS_SNAT_POOL_NAME]
+                              [--version] [--log-format LOG_FORMAT]
                               [--log-level LOG_LEVEL]
                               [--marathon-auth-credential-file""" \
         """ MARATHON_AUTH_CREDENTIAL_FILE]\n \
@@ -717,7 +718,7 @@ class MarathonTest(unittest.TestCase):
 
         # Do the BIG-IP configuration
         apps = ctlr.get_apps(self.cloud_data, True)
-        cfg = ctlr.create_config_marathon(self.cccl, apps)
+        cfg = ctlr.create_config_marathon(self.cccl, apps, "")
         self.cccl.apply_ltm_config(cfg)
 
         self.check_labels(self.cloud_data, apps)
@@ -783,7 +784,7 @@ class MarathonTest(unittest.TestCase):
                     partition,
                     prefix='')
 
-                cfg = ctlr.create_config_marathon(cccl, apps)
+                cfg = ctlr.create_config_marathon(cccl, apps, "")
                 if len(cfg['virtualServers']) > 0:
                     if expected_name1 == cfg['virtualServers'][0]['name'] and \
                             expected_partition1 == cccl.get_partition():
@@ -831,7 +832,7 @@ class MarathonTest(unittest.TestCase):
 
         # Do the BIG-IP configuration
         apps = ctlr.get_apps(self.cloud_data, False)
-        cfg = ctlr.create_config_marathon(self.cccl, apps)
+        cfg = ctlr.create_config_marathon(self.cccl, apps, "")
         self.cccl.apply_ltm_config(cfg)
 
         self.check_labels(self.cloud_data, apps)
@@ -888,7 +889,7 @@ class MarathonTest(unittest.TestCase):
 
         # Do the BIG-IP configuration
         apps = ctlr.get_apps(self.cloud_data, False)
-        cfg = ctlr.create_config_marathon(self.cccl, apps)
+        cfg = ctlr.create_config_marathon(self.cccl, apps, "")
         self.cccl.apply_ltm_config(cfg)
 
         self.check_labels(self.cloud_data, apps)
@@ -1021,7 +1022,7 @@ class MarathonTest(unittest.TestCase):
 
         # Do the BIG-IP configuration
         apps = ctlr.get_apps(self.cloud_data, False)
-        cfg = ctlr.create_config_marathon(self.cccl, apps)
+        cfg = ctlr.create_config_marathon(self.cccl, apps, "")
         self.cccl.apply_ltm_config(cfg)
 
         self.check_labels(self.cloud_data, apps)
@@ -1136,7 +1137,7 @@ class MarathonTest(unittest.TestCase):
 
         # Do the BIG-IP configuration
         apps = ctlr.get_apps(self.cloud_data, False)
-        cfg = ctlr.create_config_marathon(self.cccl, apps)
+        cfg = ctlr.create_config_marathon(self.cccl, apps, "")
         self.cccl.apply_ltm_config(cfg)
 
         self.check_labels(self.cloud_data, apps)
@@ -1153,7 +1154,7 @@ class MarathonTest(unittest.TestCase):
 
         # Do the BIG-IP configuration
         apps = ctlr.get_apps(self.cloud_data, False)
-        cfg = ctlr.create_config_marathon(self.cccl, apps)
+        cfg = ctlr.create_config_marathon(self.cccl, apps, "")
         self.cccl.apply_ltm_config(cfg)
 
         self.check_labels(self.cloud_data, apps)
@@ -1205,7 +1206,7 @@ class MarathonTest(unittest.TestCase):
         ctlr.Marathon.health_check = Mock(return_value=True)
         ctlr.MarathonEventProcessor.start_checkpoint_timer = Mock()
         ctlr.MarathonEventProcessor.retry_backoff = Mock()
-        ep = ctlr.MarathonEventProcessor(marathon, 100, [self.cccl])
+        ep = ctlr.MarathonEventProcessor(marathon, 100, [self.cccl], "")
 
         event_empty = Event(data='')
         event_app = Event(data='{"eventType": "app_terminated_event"}')
@@ -1243,7 +1244,7 @@ class MarathonTest(unittest.TestCase):
     def test_backoff_timer(self):
         """Test tight loop backoff."""
         cb = Mock()
-        ep = ctlr.MarathonEventProcessor({}, 1, {})
+        ep = ctlr.MarathonEventProcessor({}, 1, {}, "")
         # Set our times for fast unit testing
         ep._max_backoff_time = 0.1
         ep._backoff_timer = 0.025
@@ -1270,7 +1271,7 @@ class MarathonTest(unittest.TestCase):
 
         # Do the BIG-IP configuration
         apps = ctlr.get_apps(self.cloud_data, True)
-        cfg = ctlr.create_config_marathon(self.cccl, apps)
+        cfg = ctlr.create_config_marathon(self.cccl, apps, "")
         self.cccl.apply_ltm_config(cfg)
 
         self.check_labels(self.cloud_data, apps)
@@ -1282,7 +1283,7 @@ class MarathonTest(unittest.TestCase):
                                              unicode('F5_0_BIND_ADDR'):
                                              unicode('10.128.10.240')})
         apps = ctlr.get_apps(self.cloud_data, True)
-        cfg = ctlr.create_config_marathon(self.cccl, apps)
+        cfg = ctlr.create_config_marathon(self.cccl, apps, "")
         self.cccl.apply_ltm_config(cfg)
         self.check_labels(self.cloud_data, apps)
         self.assertEqual(len(cfg['virtualServers']), 1)
@@ -1298,7 +1299,7 @@ class MarathonTest(unittest.TestCase):
 
         # Do the BIG-IP configuration
         apps = ctlr.get_apps(self.cloud_data, True)
-        cfg = ctlr.create_config_marathon(self.cccl, apps)
+        cfg = ctlr.create_config_marathon(self.cccl, apps, "")
         self.cccl.apply_ltm_config(cfg)
 
         self.check_labels(self.cloud_data, apps)
@@ -1308,7 +1309,7 @@ class MarathonTest(unittest.TestCase):
         self.cloud_data[1]['labels'].pop(unicode('F5_0_MODE'))
         self.cloud_data[1]['labels'].pop(unicode('F5_0_BIND_ADDR'))
         apps = ctlr.get_apps(self.cloud_data, True)
-        cfg = ctlr.create_config_marathon(self.cccl, apps)
+        cfg = ctlr.create_config_marathon(self.cccl, apps, "")
         self.cccl.apply_ltm_config(cfg)
 
         self.check_labels(self.cloud_data, apps)
@@ -1345,7 +1346,7 @@ class MarathonTest(unittest.TestCase):
 
         # Do the BIG-IP configuration
         apps = ctlr.get_apps(self.cloud_data, True)
-        cfg = ctlr.create_config_marathon(self.cccl, apps)
+        cfg = ctlr.create_config_marathon(self.cccl, apps, "")
 
         # Corrupt the config
         del cfg['virtualServers'][0]['name']
