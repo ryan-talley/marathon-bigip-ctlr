@@ -455,6 +455,24 @@ class ArgTest(unittest.TestCase):
             + ['--verify-interval', str(timeout)]
         self.assertRaises(SystemExit, ctlr.parse_args, version_data)
 
+    def test_vs_snat_pool_name_arg(self):
+        """Test: 'VS SNAT Pool Name' arg."""
+        name = 'test-snat-pool'
+        sys.argv[0:] = self._args_app_name + self._args_mandatory \
+            + ['--vs-snat-pool-name', name]
+        args = ctlr.parse_args(version_data)
+        self.assertEqual(args.vs_snat_pool_name, name)
+
+        # test default value
+        sys.argv[0:] = self._args_app_name + self._args_mandatory
+        args = ctlr.parse_args(version_data)
+        self.assertEqual(args.vs_snat_pool_name, "")
+
+        # test via env var
+        os.environ['F5_CC_VS_SNAT_POOL_NAME'] = name
+        args = ctlr.parse_args(version_data)
+        self.assertEqual(args.vs_snat_pool_name, name)
+
     def test_marathon_ca_cert_arg(self):
         """Test: 'Marathon CA Cert' arg."""
         cert = "/this/is/a/path/to/a/cert.crt"
@@ -1315,6 +1333,25 @@ class MarathonTest(unittest.TestCase):
         self.check_labels(self.cloud_data, apps)
 
         self.assertEqual(len(cfg['virtualServers']), 0)
+
+    def test_virtual_server_snat_config(
+        self, cloud_state='tests/marathon_one_app.json'
+    ):
+        """Test: Marathon app with SNAT pool configured virtual server."""
+        # Get the test data
+        self.read_test_vectors(cloud_state)
+
+        # Do the BIG-IP configuration
+        name = "test-snat-pool"
+        apps = ctlr.get_apps(self.cloud_data, True)
+        cfg = ctlr.create_config_marathon(self.cccl, apps, name)
+        self.cccl.apply_ltm_config(cfg)
+
+        self.check_labels(self.cloud_data, apps)
+        self.assertEquals(
+            cfg['virtualServers'][0]['sourceAddressTranslation'],
+            {'type': 'snat', 'pool': name}
+        )
 
     def test_cccl_exceptions(self, cloud_state='tests/marathon_one_app.json'):
         """Test: CCCL exceptions."""
